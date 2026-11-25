@@ -1,5 +1,7 @@
 # DevOps — лабораторні роботи
 
+[![CI](https://github.com/fnayed/devops-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/fnayed/devops-lab/actions/workflows/ci.yml)
+
 Навчальний проєкт «Список задач», на якому послідовно виконуються всі лабораторні роботи з дисципліни «Технології DevOps».
 
 ## Лабораторні роботи
@@ -7,6 +9,7 @@
 | №  | Тема                                | Код на момент здачі | Звіт                         |
 |----|-------------------------------------|---------------------|------------------------------|
 | 1  | Віртуалізація та контейнеризація    | [тег `lab1`](https://github.com/fnayed/devops-lab/tree/lab1) | [docs/lab1.md](docs/lab1.md) |
+| 2  | Continuous Integration              | [тег `lab2`](https://github.com/fnayed/devops-lab/tree/lab2) | [docs/lab2.md](docs/lab2.md) |
 
 > Кожна лабораторна виконується в окремій гілці (`lab2`, `lab3`, …) і вливається в `main` через Pull Request.
 > Після здачі на коміт ставиться тег (`lab1`, `lab2`, …) — за ним завжди можна переглянути проєкт саме в тому стані, в якому його здавали.
@@ -27,6 +30,7 @@
 
 ```
 devops-lab/
+├── .github/workflows/      # CI-пайплайн (GitHub Actions)
 ├── docker-compose.yml      # піднімає весь проєкт
 ├── docs/                   # звіти з лабораторних робіт
 ├── backend/
@@ -63,6 +67,8 @@ docker compose down
 ```bash
 docker compose run --rm backend pytest -v
 ```
+
+Фронтенд (потрібен Node.js 22): `cd frontend && npm ci && npm run lint && npm test`
 
 ## API
 

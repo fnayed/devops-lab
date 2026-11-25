@@ -1,0 +1,12 @@
+line-length = 120
+target-version = "py312"
+
+[lint]
+# E/W — стиль (pycodestyle), F — помилки (pyflakes), I — порядок імпортів, B — типові баги
+select = ["E", "W", "F", "I", "B"]
+
+[lint.per-file-ignores]
+# у тестах змінна оточення задається до імпорту застосунку
+"tests/*" = ["E402"]
+# Depends(...) в аргументах за замовчуванням — стандартний підхід FastAPI
+"app/main.py" = ["B008"]
