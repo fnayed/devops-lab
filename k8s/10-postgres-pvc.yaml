@@ -1,0 +1,15 @@
+# Постійне сховище для бази даних — дані переживають перезапуск пода
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: devops-lab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

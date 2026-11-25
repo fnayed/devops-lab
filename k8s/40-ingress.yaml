@@ -1,0 +1,21 @@
+# Вхід ззовні кластера: усі запити -> фронтенд (nginx сам проксує /api на бекенд).
+# У minikube потрібне доповнення ingress; на Windows — ще й `minikube tunnel`, тоді сайт доступний на http://127.0.0.1
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devops-lab
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/part-of: devops-lab
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

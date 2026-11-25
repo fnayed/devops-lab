@@ -14,3 +14,9 @@ export function isValidTitle(raw) {
 export function statusText(count) {
   return `Задач: ${count} · бекенд працює`;
 }
+
+// Рядок «версія · под» — щоб у Kubernetes було видно, який под відповів
+export function infoText(info) {
+  if (!info) return "";
+  return `Версія ${info.version} · под ${info.pod}`;
+}
