@@ -1,0 +1,19 @@
+$ helm install app chart/devops-lab -n lab4 --create-namespace -f chart/devops-lab/values-dev.yaml --set database.password=*** --wait
+NAME: app
+LAST DEPLOYED: Wed Nov 25 16:18:00 2026
+NAMESPACE: lab4
+STATUS: deployed
+REVISION: 1
+NOTES:
+Реліз app (застосунок 1.1.0, чарт 0.1.0) встановлено в namespace lab4.
+Середовище: development; бекенд — 1 реп., фронтенд — 1 реп.
+
+Стан подів:
+  kubectl -n lab4 get pods -l app.kubernetes.io/instance=app
+
+Як відкрити застосунок:
+  kubectl -n lab4 port-forward svc/app-devops-lab-frontend 8080:80
+  і відкрийте http://localhost:8080
+
+Перевірка релізу:
+  helm test app -n lab4

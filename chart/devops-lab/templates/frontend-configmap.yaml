@@ -1,0 +1,23 @@
+# Конфігурація nginx фронтенду. В образі адреса бекенду жорстко задана як "backend:8000",
+# а в чарті імена сервісів будуються з імені релізу — тому конфіг підставляється з шаблону.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "devops-lab.componentName" (list . "frontend") }}-nginx
+  labels:
+    {{- include "devops-lab.componentLabels" (list . "frontend") | nindent 4 }}
+data:
+  default.conf: |
+    server {
+        listen 80;
+
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+
+        location /api/ {
+            proxy_pass http://{{ include "devops-lab.componentName" (list . "backend") }}:{{ .Values.backend.service.port }};
+            proxy_set_header Host $host;
+        }
+    }

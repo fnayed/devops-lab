@@ -1,0 +1,14 @@
+# Доступ до бази лише всередині кластера
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "devops-lab.componentName" (list . "postgres") }}
+  labels:
+    {{- include "devops-lab.componentLabels" (list . "postgres") | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "devops-lab.selectorLabels" (list . "postgres") | nindent 4 }}
+  ports:
+    - port: {{ .Values.postgres.service.port }}
+      targetPort: 5432

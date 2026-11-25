@@ -1,0 +1,53 @@
+# Фронтенд (nginx). Віддає сторінку і проксує /api на сервіс бекенду цього ж релізу.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "devops-lab.componentName" (list . "frontend") }}
+  labels:
+    {{- include "devops-lab.componentLabels" (list . "frontend") | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicaCount }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "devops-lab.selectorLabels" (list . "frontend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "devops-lab.componentLabels" (list . "frontend") | nindent 8 }}
+      annotations:
+        checksum/nginx: {{ include (print $.Template.BasePath "/frontend-configmap.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: frontend
+          image: {{ include "devops-lab.image" (list . .Values.frontend.image) }}
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          lifecycle:
+            preStop: # час прибрати под із балансування — оновлення без втрати запитів
+              exec:
+                command: ["sleep", "5"]
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "devops-lab.componentName" (list . "frontend") }}-nginx

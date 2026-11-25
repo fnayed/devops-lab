@@ -1,0 +1,13 @@
+# Helm-чарт застосунку «Список задач» (frontend + backend + PostgreSQL)
+apiVersion: v2
+name: devops-lab
+description: Застосунок «Список задач» — nginx-фронтенд, FastAPI-бекенд і PostgreSQL
+type: application
+# version — версія самого чарта (шаблонів); змінюється при кожній зміні чарта
+version: 0.1.0
+# appVersion — версія застосунку, яку чарт розгортає за замовчуванням (тег образів)
+appVersion: "1.1.0"
+keywords: [fastapi, nginx, postgresql, todo]
+maintainers:
+  - name: fnayed
+    url: https://github.com/fnayed/devops-lab

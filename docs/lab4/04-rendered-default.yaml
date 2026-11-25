@@ -1,0 +1,483 @@
+---
+# Source: devops-lab/templates/secret.yaml
+# Чутливі параметри. Значення беруться з values (database.password), у шаблоні їх немає.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-devops-lab-secret
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+type: Opaque
+data:
+  POSTGRES_PASSWORD: "ZGV2LW9ubHktcGFzc3dvcmQ="
+  DATABASE_URL: "cG9zdGdyZXNxbCtwc3ljb3BnOi8vYXBwOmRldi1vbmx5LXBhc3N3b3JkQGFwcC1kZXZvcHMtbGFiLXBvc3RncmVzOjU0MzIvdGFza3M="
+---
+# Source: devops-lab/templates/configmap.yaml
+# Нечутливі параметри застосунку — змінні оточення для контейнерів
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-devops-lab-config
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+data:
+  APP_ENV: "development"
+  LOG_LEVEL: "debug"
+  POSTGRES_DB: "tasks"
+  POSTGRES_USER: "app"
+---
+# Source: devops-lab/templates/frontend-configmap.yaml
+# Конфігурація nginx фронтенду. В образі адреса бекенду жорстко задана як "backend:8000",
+# а в чарті імена сервісів будуються з імені релізу — тому конфіг підставляється з шаблону.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-devops-lab-frontend-nginx
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: frontend
+data:
+  default.conf: |
+    server {
+        listen 80;
+
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+        }
+
+        location /api/ {
+            proxy_pass http://app-devops-lab-backend:8000;
+            proxy_set_header Host $host;
+        }
+    }
+---
+# Source: devops-lab/templates/postgres-pvc.yaml
+# Постійне сховище для бази даних (вимикається postgres.persistence.enabled=false)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-devops-lab-postgres-data
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: devops-lab/templates/backend-service.yaml
+# Доступ до бекенду всередині кластера (використовує nginx фронтенду)
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-devops-lab-backend
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/component: backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+# Source: devops-lab/templates/frontend-service.yaml
+# Сервіс фронтенду; ззовні до нього веде Ingress (або kubectl port-forward у dev)
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-devops-lab-frontend
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  selector:
+    
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/component: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+---
+# Source: devops-lab/templates/postgres-service.yaml
+# Доступ до бази лише всередині кластера
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-devops-lab-postgres
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: postgres
+spec:
+  type: ClusterIP
+  selector:
+    
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/component: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+# Source: devops-lab/templates/backend-deployment.yaml
+# Бекенд (FastAPI). Тег образу — з values (backend.image.tag) або appVersion чарта.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-devops-lab-backend
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # під час оновлення завжди є робочі поди
+      maxSurge: 1
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: devops-lab
+      app.kubernetes.io/instance: app
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: devops-lab-0.1.0
+        app.kubernetes.io/name: devops-lab
+        app.kubernetes.io/instance: app
+        app.kubernetes.io/version: "1.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: devops-lab
+        app.kubernetes.io/component: backend
+      annotations:
+        # поди перезапускаються, якщо змінилися конфігурація або секрет
+        checksum/config: ed61b92b227f4b7836a9cecc8381b1faeb65b4c6c4d1efc16491356f26adb1f0
+        checksum/secret: 712336a319ddd19380a7563b52a9371ade6ca42e6f2a19b14521e0a5c501fd68
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/fnayed/devops-lab-backend:1.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef: { name: app-devops-lab-config, key: APP_ENV }
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef: { name: app-devops-lab-config, key: LOG_LEVEL }
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: app-devops-lab-secret, key: DATABASE_URL }
+          resources:
+            limits:
+              cpu: 300m
+              memory: 192Mi
+            requests:
+              cpu: 50m
+              memory: 96Mi
+          readinessProbe: # под отримує трафік лише коли готовий
+            httpGet: { path: /api/health, port: 8000 }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe: # якщо под завис — Kubernetes його перезапустить
+            httpGet: { path: /api/health, port: 8000 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          lifecycle:
+            preStop: # час прибрати под із балансування — оновлення без втрати запитів
+              exec:
+                command: ["sleep", "5"]
+---
+# Source: devops-lab/templates/frontend-deployment.yaml
+# Фронтенд (nginx). Віддає сторінку і проксує /api на сервіс бекенду цього ж релізу.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-devops-lab-frontend
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: devops-lab
+      app.kubernetes.io/instance: app
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: devops-lab-0.1.0
+        app.kubernetes.io/name: devops-lab
+        app.kubernetes.io/instance: app
+        app.kubernetes.io/version: "1.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: devops-lab
+        app.kubernetes.io/component: frontend
+      annotations:
+        checksum/nginx: a5163a4011e34e121b2f1a0955aa2637f5fb9161cde83301b447baf83b014942
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/fnayed/devops-lab-frontend:1.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 25m
+              memory: 32Mi
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          lifecycle:
+            preStop: # час прибрати под із балансування — оновлення без втрати запитів
+              exec:
+                command: ["sleep", "5"]
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: app-devops-lab-frontend-nginx
+---
+# Source: devops-lab/templates/postgres-deployment.yaml
+# База даних PostgreSQL. Одна репліка: диск ReadWriteOnce підключається лише до одного пода.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-devops-lab-postgres
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: postgres
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # старий под має відпустити диск до старту нового
+  selector:
+    matchLabels:
+      
+      app.kubernetes.io/name: devops-lab
+      app.kubernetes.io/instance: app
+      app.kubernetes.io/component: postgres
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: devops-lab-0.1.0
+        app.kubernetes.io/name: devops-lab
+        app.kubernetes.io/instance: app
+        app.kubernetes.io/version: "1.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: devops-lab
+        app.kubernetes.io/component: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef: { name: app-devops-lab-config, key: POSTGRES_DB }
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef: { name: app-devops-lab-config, key: POSTGRES_USER }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: app-devops-lab-secret, key: POSTGRES_PASSWORD }
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            limits:
+              cpu: 300m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: app-devops-lab-postgres-data
+---
+# Source: devops-lab/templates/tests/test-health.yaml
+# Тест релізу (helm test): запит через фронтенд до /api/health перевіряє весь ланцюжок
+# frontend (nginx) -> backend -> PostgreSQL.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-devops-lab-test-health
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: health
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          URL=http://app-devops-lab-frontend:80
+          echo "GET $URL/api/health"; wget -qO- $URL/api/health; echo
+          echo "GET $URL/api/info";   wget -qO- $URL/api/info;   echo
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits: { cpu: 100m, memory: 32Mi }
+---
+# Source: devops-lab/templates/hook-db-check.yaml
+# Pre-upgrade хук: перед оновленням релізу перевіряє, що база даних приймає з'єднання.
+# Якщо база недоступна ~60 с — Job завершується з помилкою і helm upgrade скасовується.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: app-devops-lab-db-check
+  labels:
+    helm.sh/chart: devops-lab-0.1.0
+    app.kubernetes.io/name: devops-lab
+    app.kubernetes.io/instance: app
+    app.kubernetes.io/version: "1.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: devops-lab
+    app.kubernetes.io/component: db-check
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 90
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: devops-lab-0.1.0
+        app.kubernetes.io/name: devops-lab
+        app.kubernetes.io/instance: app
+        app.kubernetes.io/version: "1.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/part-of: devops-lab
+        app.kubernetes.io/component: db-check
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: db-check
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                if pg_isready -h app-devops-lab-postgres -p 5432 -U app; then
+                  echo "База даних доступна — оновлення дозволено"; exit 0
+                fi
+                sleep 2
+              done
+              echo "База даних недоступна — оновлення скасовано"; exit 1
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }

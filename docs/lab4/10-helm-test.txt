@@ -1,0 +1,30 @@
+$ helm test app -n lab4
+NAME: app
+LAST DEPLOYED: Wed Nov 25 16:18:00 2026
+NAMESPACE: lab4
+STATUS: deployed
+REVISION: 1
+TEST SUITE:     app-devops-lab-test-health
+Last Started:   Wed Nov 25 16:18:32 2026
+Last Completed: Wed Nov 25 16:18:36 2026
+Phase:          Succeeded
+NOTES:
+Реліз app (застосунок 1.1.0, чарт 0.1.0) встановлено в namespace lab4.
+Середовище: development; бекенд — 1 реп., фронтенд — 1 реп.
+
+Стан подів:
+  kubectl -n lab4 get pods -l app.kubernetes.io/instance=app
+
+Як відкрити застосунок:
+  kubectl -n lab4 port-forward svc/app-devops-lab-frontend 8080:80
+  і відкрийте http://localhost:8080
+
+Перевірка релізу:
+  helm test app -n lab4
+
+POD LOGS: app-devops-lab-test-health
+GET http://app-devops-lab-frontend:80/api/health
+{"status":"ok"}
+GET http://app-devops-lab-frontend:80/api/info
+{"version":"1.1.0","env":"development","log_level":"DEBUG","pod":"app-devops-lab-backend-75d48d8444-8vsnn"}
+

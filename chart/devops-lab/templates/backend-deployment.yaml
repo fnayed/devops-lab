@@ -1,0 +1,57 @@
+# Бекенд (FastAPI). Тег образу — з values (backend.image.tag) або appVersion чарта.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "devops-lab.componentName" (list . "backend") }}
+  labels:
+    {{- include "devops-lab.componentLabels" (list . "backend") | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # під час оновлення завжди є робочі поди
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "devops-lab.selectorLabels" (list . "backend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "devops-lab.componentLabels" (list . "backend") | nindent 8 }}
+      annotations:
+        # поди перезапускаються, якщо змінилися конфігурація або секрет
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: backend
+          image: {{ include "devops-lab.image" (list . .Values.backend.image) }}
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: APP_ENV
+              valueFrom:
+                configMapKeyRef: { name: {{ include "devops-lab.fullname" . }}-config, key: APP_ENV }
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef: { name: {{ include "devops-lab.fullname" . }}-config, key: LOG_LEVEL }
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: { name: {{ include "devops-lab.fullname" . }}-secret, key: DATABASE_URL }
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          readinessProbe: # под отримує трафік лише коли готовий
+            httpGet: { path: /api/health, port: 8000 }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe: # якщо под завис — Kubernetes його перезапустить
+            httpGet: { path: /api/health, port: 8000 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          lifecycle:
+            preStop: # час прибрати под із балансування — оновлення без втрати запитів
+              exec:
+                command: ["sleep", "5"]

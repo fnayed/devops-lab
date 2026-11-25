@@ -1,0 +1,27 @@
+# Тест релізу (helm test): запит через фронтенд до /api/health перевіряє весь ланцюжок
+# frontend (nginx) -> backend -> PostgreSQL.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "devops-lab.fullname" . }}-test-health
+  labels:
+    {{- include "devops-lab.componentLabels" (list . "test") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: health
+      image: {{ .Values.tests.image }}
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          URL=http://{{ include "devops-lab.componentName" (list . "frontend") }}:{{ .Values.frontend.service.port }}
+          echo "GET $URL/api/health"; wget -qO- $URL/api/health; echo
+          echo "GET $URL/api/info";   wget -qO- $URL/api/info;   echo
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits: { cpu: 100m, memory: 32Mi }

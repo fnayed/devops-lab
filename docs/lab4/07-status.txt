@@ -1,0 +1,107 @@
+$ helm list -n lab4
+NAME	NAMESPACE	REVISION	UPDATED                              	STATUS  	CHART           	APP VERSION
+app 	lab4     	1       	2026-11-25 16:18:00.9381411 +0200 EET	deployed	devops-lab-0.1.0	1.1.0      
+
+$ helm status app -n lab4 --show-resources
+NAME: app
+LAST DEPLOYED: Wed Nov 25 16:18:00 2026
+NAMESPACE: lab4
+STATUS: deployed
+REVISION: 1
+RESOURCES:
+==> v1/Deployment
+NAME                     READY   UP-TO-DATE   AVAILABLE   AGE
+app-devops-lab-backend   1/1     1            1           12s
+app-devops-lab-frontend   1/1   1     1     12s
+app-devops-lab-postgres   1/1   1     1     12s
+
+==> v1/Pod(related)
+NAME                                      READY   STATUS    RESTARTS   AGE
+app-devops-lab-backend-75d48d8444-8vsnn   1/1     Running   0          12s
+app-devops-lab-frontend-6b4855d4b7-d595w   1/1   Running   0     12s
+app-devops-lab-postgres-666dd4c9dd-hsvmb   1/1   Running   0     12s
+
+==> v1/Secret
+NAME                    TYPE     DATA   AGE
+app-devops-lab-secret   Opaque   2      12s
+
+==> v1/ConfigMap
+NAME                    DATA   AGE
+app-devops-lab-config   4      12s
+app-devops-lab-frontend-nginx   1     12s
+
+==> v1/PersistentVolumeClaim
+NAME                           STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+app-devops-lab-postgres-data   Bound    pvc-14f138bc-3ed0-41c3-9199-e24e24e3bdf0   1Gi        RWO            standard       <unset>                 12s
+
+==> v1/Service
+NAME                     TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+app-devops-lab-backend   ClusterIP   10.108.147.140   <none>        8000/TCP   12s
+app-devops-lab-frontend   ClusterIP   10.102.29.248   <none>   80/TCP   12s
+app-devops-lab-postgres   ClusterIP   10.106.173.214   <none>   5432/TCP   12s
+
+
+$ helm get values app -n lab4
+USER-SUPPLIED VALUES:
+backend:
+  image:
+    tag: 1.1.0
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 300m
+      memory: 192Mi
+    requests:
+      cpu: 50m
+      memory: 96Mi
+config:
+  appEnv: development
+  logLevel: debug
+database:
+  password: "***"  # приховано у звіті
+frontend:
+  image:
+    tag: 1.1.0
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 25m
+      memory: 32Mi
+ingress:
+  enabled: false
+
+$ kubectl -n lab4 get all,cm,secret,pvc
+NAME                                           READY   STATUS    RESTARTS   AGE
+pod/app-devops-lab-backend-75d48d8444-8vsnn    1/1     Running   0          12s
+pod/app-devops-lab-frontend-6b4855d4b7-d595w   1/1     Running   0          12s
+pod/app-devops-lab-postgres-666dd4c9dd-hsvmb   1/1     Running   0          12s
+
+NAME                              TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/app-devops-lab-backend    ClusterIP   10.108.147.140   <none>        8000/TCP   12s
+service/app-devops-lab-frontend   ClusterIP   10.102.29.248    <none>        80/TCP     12s
+service/app-devops-lab-postgres   ClusterIP   10.106.173.214   <none>        5432/TCP   12s
+
+NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/app-devops-lab-backend    1/1     1            1           12s
+deployment.apps/app-devops-lab-frontend   1/1     1            1           12s
+deployment.apps/app-devops-lab-postgres   1/1     1            1           12s
+
+NAME                                                 DESIRED   CURRENT   READY   AGE
+replicaset.apps/app-devops-lab-backend-75d48d8444    1         1         1       12s
+replicaset.apps/app-devops-lab-frontend-6b4855d4b7   1         1         1       12s
+replicaset.apps/app-devops-lab-postgres-666dd4c9dd   1         1         1       12s
+
+NAME                                      DATA   AGE
+configmap/app-devops-lab-config           4      12s
+configmap/app-devops-lab-frontend-nginx   1      12s
+configmap/kube-root-ca.crt                1      12s
+
+NAME                               TYPE                 DATA   AGE
+secret/app-devops-lab-secret       Opaque               2      12s
+secret/sh.helm.release.v1.app.v1   helm.sh/release.v1   1      12s
+
+NAME                                                 STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+persistentvolumeclaim/app-devops-lab-postgres-data   Bound    pvc-14f138bc-3ed0-41c3-9199-e24e24e3bdf0   1Gi        RWO            standard       <unset>                 12s

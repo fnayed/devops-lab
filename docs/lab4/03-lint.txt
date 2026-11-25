@@ -1,0 +1,20 @@
+$ helm lint chart/devops-lab
+==> Linting chart/devops-lab
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+
+$ helm lint chart/devops-lab -f values-prod.yaml --set database.password=x
+==> Linting chart/devops-lab
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+
+
+$ helm lint --strict
+==> Linting chart/devops-lab
+[INFO] Chart.yaml: icon is recommended
+
+1 chart(s) linted, 0 chart(s) failed
+$ helm template app chart/devops-lab -f values-prod.yaml   # без пароля — встановлення зупиняється
+Error: execution error at (devops-lab/templates/secret.yaml:2:17): Потрібно задати пароль бази: --set database.password=...

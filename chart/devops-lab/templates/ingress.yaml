@@ -1,0 +1,24 @@
+{{- if .Values.ingress.enabled }}
+# Вхід ззовні кластера: усі запити -> фронтенд (вмикається ingress.enabled=true)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "devops-lab.fullname" . }}
+  labels:
+    {{- include "devops-lab.labels" . | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "devops-lab.componentName" (list . "frontend") }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+      {{- with .Values.ingress.host }}
+      host: {{ . | quote }}
+      {{- end }}
+{{- end }}

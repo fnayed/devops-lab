@@ -1,0 +1,17 @@
+Реліз {{ .Release.Name }} (застосунок {{ .Chart.AppVersion }}, чарт {{ .Chart.Version }}) встановлено в namespace {{ .Release.Namespace }}.
+Середовище: {{ .Values.config.appEnv }}; бекенд — {{ .Values.backend.replicaCount }} реп., фронтенд — {{ .Values.frontend.replicaCount }} реп.
+
+Стан подів:
+  kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Як відкрити застосунок:
+{{- if .Values.ingress.enabled }}
+  Через Ingress (у minikube на Windows спочатку запустіть від адміністратора `minikube tunnel`):
+  http://{{ default "127.0.0.1" .Values.ingress.host }}
+{{- else }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "devops-lab.componentName" (list . "frontend") }} 8080:{{ .Values.frontend.service.port }}
+  і відкрийте http://localhost:8080
+{{- end }}
+
+Перевірка релізу:
+  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}

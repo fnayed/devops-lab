@@ -1,0 +1,26 @@
+# Об'єкти лаби 3 (k8s/) та чарта (helm template app chart/devops-lab)
+## k8s/
+kind: Namespace	  name: devops-lab
+kind: ConfigMap	  name: app-config
+kind: Secret	  name: app-secret
+kind: PersistentVolumeClaim	  name: postgres-data
+kind: Deployment	  name: postgres
+kind: Service	  name: postgres
+kind: Deployment	  name: backend
+kind: Service	  name: backend
+kind: Deployment	  name: frontend
+kind: Service	  name: frontend
+kind: Ingress	  name: devops-lab
+## chart
+kind: Secret	  name: app-devops-lab-secret
+kind: ConfigMap	  name: app-devops-lab-config
+kind: ConfigMap	  name: app-devops-lab-frontend-nginx
+kind: PersistentVolumeClaim	  name: app-devops-lab-postgres-data
+kind: Service	  name: app-devops-lab-backend
+kind: Service	  name: app-devops-lab-frontend
+kind: Service	  name: app-devops-lab-postgres
+kind: Deployment	  name: app-devops-lab-backend
+kind: Deployment	  name: app-devops-lab-frontend
+kind: Deployment	  name: app-devops-lab-postgres
+kind: Pod	  name: app-devops-lab-test-health
+kind: Job	  name: app-devops-lab-db-check
