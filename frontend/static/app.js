@@ -1,3 +1,5 @@
+import { isValidTitle, normalizeTitle, statusText } from "./utils.js";
+
 const list = document.getElementById("list");
 const form = document.getElementById("form");
 const titleInput = document.getElementById("title");
@@ -35,7 +37,7 @@ async function load() {
       li.append(box, text, del);
       list.append(li);
     }
-    statusEl.textContent = `Задач: ${tasks.length} · бекенд працює`;
+    statusEl.textContent = statusText(tasks.length);
   } catch (e) {
     statusEl.textContent = "Бекенд недоступний: " + e.message;
   }
@@ -43,7 +45,8 @@ async function load() {
 
 form.onsubmit = async (e) => {
   e.preventDefault();
-  await api("/tasks", { method: "POST", body: JSON.stringify({ title: titleInput.value }) });
+  if (!isValidTitle(titleInput.value)) return;
+  await api("/tasks", { method: "POST", body: JSON.stringify({ title: normalizeTitle(titleInput.value) }) });
   titleInput.value = "";
   load();
 };
