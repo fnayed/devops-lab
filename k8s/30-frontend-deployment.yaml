@@ -36,6 +36,10 @@ spec:
             httpGet: { path: /, port: 80 }
             initialDelaySeconds: 2
             periodSeconds: 5
+          lifecycle:
+            preStop: # перед зупинкою даємо час прибрати под із балансування — оновлення без втрати запитів
+              exec:
+                command: ["sleep", "5"]
           livenessProbe:
             httpGet: { path: /, port: 80 }
             initialDelaySeconds: 10

@@ -46,6 +46,10 @@ spec:
             httpGet: { path: /api/health, port: 8000 }
             initialDelaySeconds: 3
             periodSeconds: 5
+          lifecycle:
+            preStop: # перед зупинкою даємо час прибрати под із балансування — оновлення без втрати запитів
+              exec:
+                command: ["sleep", "5"]
           livenessProbe: # якщо под завис — Kubernetes його перезапустить
             httpGet: { path: /api/health, port: 8000 }
             initialDelaySeconds: 15

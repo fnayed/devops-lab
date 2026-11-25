@@ -1,0 +1,84 @@
+$ kubectl apply -f k8s/
+namespace/devops-lab created
+configmap/app-config created
+secret/app-secret created
+persistentvolumeclaim/postgres-data created
+deployment.apps/postgres created
+service/postgres created
+deployment.apps/backend created
+service/backend created
+deployment.apps/frontend created
+service/frontend created
+ingress.networking.k8s.io/devops-lab created
+
+$ kubectl -n devops-lab get pods -o wide
+NAME                        READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+backend-58794986b4-5j644    1/1     Running   0          39s   10.244.0.8    minikube   <none>           <none>
+backend-58794986b4-hz9xh    1/1     Running   0          39s   10.244.0.7    minikube   <none>           <none>
+frontend-5f8d87874-7b9dj    1/1     Running   0          39s   10.244.0.9    minikube   <none>           <none>
+frontend-5f8d87874-ch7wr    1/1     Running   0          39s   10.244.0.10   minikube   <none>           <none>
+postgres-5777d75dcd-qbbxn   1/1     Running   0          39s   10.244.0.11   minikube   <none>           <none>
+
+$ kubectl -n devops-lab get deployments
+NAME       READY   UP-TO-DATE   AVAILABLE   AGE
+backend    2/2     2            2           39s
+frontend   2/2     2            2           39s
+postgres   1/1     1            1           39s
+
+$ kubectl -n devops-lab get replicasets
+NAME                  DESIRED   CURRENT   READY   AGE
+backend-58794986b4    2         2         2       39s
+frontend-5f8d87874    2         2         2       39s
+postgres-5777d75dcd   1         1         1       39s
+
+$ kubectl -n devops-lab get services
+NAME       TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+backend    ClusterIP   10.105.173.99    <none>        8000/TCP   39s
+frontend   ClusterIP   10.97.43.73      <none>        80/TCP     39s
+postgres   ClusterIP   10.107.111.246   <none>        5432/TCP   39s
+
+$ kubectl -n devops-lab get ingress
+NAME         CLASS   HOSTS   ADDRESS        PORTS   AGE
+devops-lab   nginx   *       192.168.49.2   80      39s
+
+$ kubectl -n devops-lab get pvc
+NAME            STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+postgres-data   Bound    pvc-3f5ad577-52a1-46d4-8718-0da18c820274   1Gi        RWO            standard       <unset>                 39s
+
+$ kubectl -n devops-lab get configmap app-config -o yaml
+apiVersion: v1
+data:
+  APP_ENV: kubernetes
+  LOG_LEVEL: info
+  POSTGRES_DB: tasks
+  POSTGRES_USER: app
+kind: ConfigMap
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"APP_ENV":"kubernetes","LOG_LEVEL":"info","POSTGRES_DB":"tasks","POSTGRES_USER":"app"},"kind":"ConfigMap","metadata":{"annotations":{},"labels":{"app.kubernetes.io/part-of":"devops-lab"},"name":"app-config","namespace":"devops-lab"}}
+  creationTimestamp: "2026-11-25T13:01:48Z"
+  labels:
+    app.kubernetes.io/part-of: devops-lab
+  name: app-config
+  namespace: devops-lab
+  resourceVersion: "837"
+  uid: a569e132-970b-4b74-b711-8fcdbee3e16c
+
+# Перевірка: значення з ConfigMap і Secret потрапили в контейнер (backend-58794986b4-5j644)
+$ kubectl -n devops-lab exec backend-58794986b4-5j644 -- env | grep -E 'APP_ENV|LOG_LEVEL|DATABASE_URL'
+APP_ENV=kubernetes
+LOG_LEVEL=info
+DATABASE_URL=postgresql+psycopg://app:lab3-demo-password@postgres:5432/tasks
+
+$ kubectl -n devops-lab exec deploy/postgres -- printenv POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD
+tasks
+app
+lab3-demo-password
+
+$ kubectl -n devops-lab exec backend-58794986b4-5j644 -- python -c "import urllib.request;print(urllib.request.urlopen('http://localhost:8000/api/info').read().decode())"
+{"version":"1.0.0","env":"kubernetes","log_level":"INFO","pod":"backend-58794986b4-5j644"}
+
+$ kubectl top pods -n devops-lab
+error: metrics not available yet
+
