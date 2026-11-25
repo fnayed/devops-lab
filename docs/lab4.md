@@ -10,6 +10,32 @@
 **Мета:** переписати маніфести з лабораторної №3 у власний Helm-чарт, параметризувати його для двох середовищ
 і показати повний життєвий цикл релізу: встановлення, оновлення, історію, відкат і видалення.
 
+## Архітектура: що створює один реліз
+
+```
+ helm install app chart/devops-lab -n lab4 -f values-<env>.yaml --set database.password=***
+                    │
+                    ▼   namespace: lab4, реліз "app" → префікс імен app-devops-lab-
+ Браузер ──► [Ingress app-devops-lab]* ──► Service app-devops-lab-frontend ──► Deployment frontend (N подів, nginx)
+                                                 │  /api  (конфіг nginx — ConfigMap app-devops-lab-frontend-nginx)
+                                                 ▼
+                                           Service app-devops-lab-backend  ──► Deployment backend (N подів, FastAPI)
+                                                 │
+                                                 ▼
+                                           Service app-devops-lab-postgres ──► Deployment postgres (1 под) ──► [PVC app-devops-lab-postgres-data]*
+
+ ConfigMap app-devops-lab-config ─► APP_ENV, LOG_LEVEL, POSTGRES_DB, POSTGRES_USER     ← .Values.config / .Values.database
+ Secret    app-devops-lab-secret ─► POSTGRES_PASSWORD, DATABASE_URL                    ← .Values.database.password
+ Secret    sh.helm.release.v1.app.vN ─► стан релізу (ревізія N) — зберігає сам Helm
+
+ Хук pre-upgrade:  Job app-devops-lab-db-check   (перевіряє БД перед кожним helm upgrade)
+ Тест:             Pod app-devops-lab-test-health (helm test → /api/health через фронтенд)
+ * — необов'язкові об'єкти: ingress.enabled, postgres.persistence.enabled
+```
+
+Ідея чарта: **один набір шаблонів + різні файли значень = різні середовища**.
+Маніфести лабораторної №3 стали шаблонами, а все, що відрізняється між середовищами, винесено у `values`.
+
 ## 1. Підготовка середовища
 
 Вивід: [`01-env.txt`](lab4/01-env.txt).
@@ -159,6 +185,13 @@ chart/devops-lab/
 | 3 | **8b** `helm upgrade ... -f values-prod.yaml --set database.password=***` | prod: backend 3 репліки, frontend 2, обидва `1.0.0`, більші ресурси, `production`/`warning`, з'явився Ingress |
 | 4 | **8d** `helm rollback app 2` | повернення до стану ревізії 2: 1+1 репліка, Ingress видалено; ревізія 3 стала `superseded`, нова ревізія 4 має опис `Rollback to 2` |
 
+Застосунок у браузері до і після переходу dev → prod (через `kubectl port-forward`).
+Задачі, створені в dev, збереглися: PVC і база не перестворювались. Версія змінилася з 1.1.0 на 1.0.0, і в 1.0.0 немає лічильника виконаних задач.
+
+| dev — ревізія 1, версія 1.1.0 | prod — після `helm upgrade -f values-prod.yaml`, версія 1.0.0 |
+|---|---|
+| ![dev](lab4/browser-dev-1.1.0.png) | ![prod](lab4/browser-prod-1.0.0.png) |
+
 **8c.** Зміни між ревізіями показано двома способами:
 - `helm get values --revision N` дає значення кожної ревізії;
 - `diff` виводів `helm get manifest --revision N` дає різницю маніфестів.
@@ -232,3 +265,41 @@ GET http://app-devops-lab-frontend:80/api/info
 | Немає жорстко прописаних імені релізу, тега образу, кількості реплік | усі через `.Release.Name` / `.Values` / `.Chart.AppVersion` |
 | Встановлюється на чистому кластері однією командою | `helm install app chart/devops-lab -n lab4 --create-namespace -f values-dev.yaml --set database.password=...` |
 | Реальні паролі у файлах значень не зберігаються | `values-prod.yaml` — порожній пароль + `required`; у `values.yaml` лише навчальний `dev-only-password` для локального кластера |
+
+## Команди для демонстрації
+
+```bash
+minikube start
+helm version
+
+# перевірка чарта без кластера
+helm lint --strict chart/devops-lab
+helm template app chart/devops-lab -f chart/devops-lab/values-dev.yaml  > dev.yaml
+helm template app chart/devops-lab -f chart/devops-lab/values-prod.yaml --set database.password=x > prod.yaml
+diff dev.yaml prod.yaml                                   # різниця середовищ
+helm template app chart/devops-lab -f chart/devops-lab/values-prod.yaml   # без пароля — помилка
+
+# встановлення (dev)
+helm install app chart/devops-lab -n lab4 --create-namespace -f chart/devops-lab/values-dev.yaml --set database.password=demo123 --wait
+helm list -n lab4
+helm status app -n lab4 --show-resources
+helm get values app -n lab4
+kubectl -n lab4 get secret -l owner=helm                  # де Helm зберігає стан
+kubectl -n lab4 port-forward svc/app-devops-lab-frontend 8080:80    # http://localhost:8080
+
+# життєвий цикл
+helm upgrade app chart/devops-lab -n lab4 --reuse-values --set backend.image.tag=1.0.0 --wait            # ревізія 2
+helm upgrade app chart/devops-lab -n lab4 -f chart/devops-lab/values-prod.yaml --set database.password=demo123 --wait   # ревізія 3
+kubectl -n lab4 get deploy,ingress
+helm history app -n lab4
+helm get values app -n lab4 --revision 2
+helm rollback app 2 -n lab4 --wait                        # ревізія 4 = "Rollback to 2"
+helm history app -n lab4
+helm test app -n lab4 --logs                              # тест релізу
+
+# видалення
+helm uninstall app -n lab4 --wait
+kubectl -n lab4 get all,cm,secret,pvc,ingress             # порожньо (лише kube-root-ca.crt)
+```
+
+> Пароль у `--set` має бути **однаковим** в усіх командах одного релізу — PostgreSQL задає його лише під час першого запуску з порожнім томом.
