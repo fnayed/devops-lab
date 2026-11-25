@@ -23,6 +23,8 @@ test("infoText показує версію та под", () => {
   assert.equal(infoText(null), "");
 });
 
-test("statusText показує кількість задач", () => {
-  assert.equal(statusText(3), "Задач: 3 · бекенд працює");
+test("statusText показує кількість задач і виконаних", () => {
+  const tasks = [{ done: true }, { done: false }, { done: true }];
+  assert.equal(statusText(tasks), "Задач: 3 · виконано: 2 · бекенд працює");
+  assert.equal(statusText([]), "Задач: 0 · виконано: 0 · бекенд працює");
 });

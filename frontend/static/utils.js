@@ -11,8 +11,9 @@ export function isValidTitle(raw) {
   return title.length > 0 && title.length <= MAX_TITLE_LENGTH;
 }
 
-export function statusText(count) {
-  return `Задач: ${count} · бекенд працює`;
+export function statusText(tasks) {
+  const done = tasks.filter((t) => t.done).length;
+  return `Задач: ${tasks.length} · виконано: ${done} · бекенд працює`;
 }
 
 // Рядок «версія · под» — щоб у Kubernetes було видно, який под відповів

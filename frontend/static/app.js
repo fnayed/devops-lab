@@ -38,7 +38,7 @@ async function load() {
       li.append(box, text, del);
       list.append(li);
     }
-    statusEl.textContent = statusText(tasks.length);
+    statusEl.textContent = statusText(tasks);
     infoEl.textContent = infoText(await api("/info"));
   } catch (e) {
     statusEl.textContent = "Бекенд недоступний: " + e.message;
