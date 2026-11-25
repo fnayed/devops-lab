@@ -21,7 +21,7 @@ def client():
 def test_health(client):
     r = client.get("/api/health")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok"}
+    assert r.json() == {"status": "broken"}  # навмисно зламаний тест для демонстрації
 
 
 def test_create_and_list(client):
