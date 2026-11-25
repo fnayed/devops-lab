@@ -1,0 +1,16 @@
+# Сервіс фронтенду всередині кластера; ззовні до нього веде Ingress
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: devops-lab
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: frontend
+  ports:
+    - port: 80
+      targetPort: 80

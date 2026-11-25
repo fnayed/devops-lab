@@ -1,0 +1,100 @@
+# 7a. Навмисно неіснуючий тег образу
+$ kubectl -n devops-lab set image deploy/backend backend=ghcr.io/fnayed/devops-lab-backend:9.9.9
+deployment.apps/backend image updated
+
+$ kubectl -n devops-lab get pods -l app.kubernetes.io/name=backend
+NAME                       READY   STATUS         RESTARTS   AGE
+backend-59fd58b5c9-wqvjr   1/1     Running        0          111s
+backend-59fd58b5c9-wtz46   1/1     Running        0          117s
+backend-5b98fb5bd6-299ns   0/1     ErrImagePull   0          40s
+
+# 7b. Причина: опис пода та події
+$ kubectl -n devops-lab describe pod backend-5b98fb5bd6-299ns   (фрагмент: Containers/State + Events)
+    Image:          ghcr.io/fnayed/devops-lab-backend:9.9.9
+    State:          Waiting
+      Reason:       ErrImagePull
+
+Events:
+  Type     Reason     Age                From               Message
+  ----     ------     ----               ----               -------
+  Normal   Scheduled  40s                default-scheduler  Successfully assigned devops-lab/backend-5b98fb5bd6-299ns to minikube
+  Normal   Pulling    27s (x2 over 40s)  kubelet            spec.containers{backend}: Pulling image "ghcr.io/fnayed/devops-lab-backend:9.9.9"
+  Warning  Failed     26s (x2 over 40s)  kubelet            spec.containers{backend}: Failed to pull image "ghcr.io/fnayed/devops-lab-backend:9.9.9": rpc error: code = NotFound desc = failed to pull and unpack image "ghcr.io/fnayed/devops-lab-backend:9.9.9": failed to resolve reference "ghcr.io/fnayed/devops-lab-backend:9.9.9": ghcr.io/fnayed/devops-lab-backend:9.9.9: not found
+  Warning  Failed     26s (x2 over 40s)  kubelet            spec.containers{backend}: Error: ErrImagePull
+  Normal   BackOff    12s (x2 over 39s)  kubelet            spec.containers{backend}: Back-off pulling image "ghcr.io/fnayed/devops-lab-backend:9.9.9"
+  Warning  Failed     12s (x2 over 39s)  kubelet            spec.containers{backend}: Error: ImagePullBackOff
+
+$ kubectl -n devops-lab get events --field-selector involvedObject.name=backend-5b98fb5bd6-299ns --sort-by=.lastTimestamp
+LAST SEEN   TYPE      REASON      OBJECT                         MESSAGE
+40s         Normal    Scheduled   pod/backend-5b98fb5bd6-299ns   Successfully assigned devops-lab/backend-5b98fb5bd6-299ns to minikube
+27s         Normal    Pulling     pod/backend-5b98fb5bd6-299ns   Pulling image "ghcr.io/fnayed/devops-lab-backend:9.9.9"
+26s         Warning   Failed      pod/backend-5b98fb5bd6-299ns   Failed to pull image "ghcr.io/fnayed/devops-lab-backend:9.9.9": rpc error: code = NotFound desc = failed to pull and unpack image "ghcr.io/fnayed/devops-lab-backend:9.9.9": failed to resolve reference "ghcr.io/fnayed/devops-lab-backend:9.9.9": ghcr.io/fnayed/devops-lab-backend:9.9.9: not found
+26s         Warning   Failed      pod/backend-5b98fb5bd6-299ns   Error: ErrImagePull
+12s         Normal    BackOff     pod/backend-5b98fb5bd6-299ns   Back-off pulling image "ghcr.io/fnayed/devops-lab-backend:9.9.9"
+12s         Warning   Failed      pod/backend-5b98fb5bd6-299ns   Error: ImagePullBackOff
+
+# Застосунок при цьому працює: старі поди (1.1.0) не прибрано, бо maxUnavailable: 0
+$ curl -s http://127.0.0.1/api/info
+{"version":"1.1.0","env":"kubernetes","log_level":"INFO","pod":"backend-59fd58b5c9-wqvjr"}
+
+# Статус пода через деякий час (Kubernetes збільшує паузу між спробами — back-off):
+$ kubectl -n devops-lab get pods -l app.kubernetes.io/name=backend
+NAME                       READY   STATUS             RESTARTS   AGE
+backend-59fd58b5c9-wqvjr   1/1     Running            0          2m1s
+backend-59fd58b5c9-wtz46   1/1     Running            0          2m7s
+backend-5b98fb5bd6-299ns   0/1     ImagePullBackOff   0          50s
+
+# 7c. Логи контейнера (робочий под)
+$ kubectl -n devops-lab logs backend-59fd58b5c9-wqvjr --tail=15
+INFO:     10.244.0.1:49146 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:49152 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:39908 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:39916 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:39930 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:42786 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:42796 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:42806 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:36066 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:36082 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:36096 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.26:34194 - "GET /api/info HTTP/1.1" 200 OK
+INFO:     10.244.0.1:36434 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:36440 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     10.244.0.1:36450 - "GET /api/health HTTP/1.1" 200 OK
+
+# 7c. Вхід у контейнер в інтерактивному режимі: kubectl exec -it backend-59fd58b5c9-wqvjr -- sh
+# (нижче — сесія, команди введено в оболонку контейнера)
+$ kubectl -n devops-lab exec -it backend-59fd58b5c9-wqvjr -- sh
+# hostname
+# echo APP_VERSION=$APP_VERSION APP_ENV=$APP_ENV
+# ls /app
+# python -c "import urllib.request;print(urllib.request.urlopen(\"http://localhost:8000/api/health\").read().decode())"
+# exit
+backend-59fd58b5c9-wqvjr
+APP_VERSION=1.1.0 APP_ENV=kubernetes
+Dockerfile
+app
+pytest.ini
+requirements.txt
+ruff.toml
+tests
+{"status":"ok"}
+
+# 7d. Виправлення: повертаємо правильний тег
+$ kubectl -n devops-lab set image deploy/backend backend=ghcr.io/fnayed/devops-lab-backend:1.1.0
+deployment.apps/backend image updated
+
+$ kubectl -n devops-lab rollout status deploy/backend --timeout=120s
+deployment "backend" successfully rolled out
+
+$ kubectl -n devops-lab get pods
+NAME                        READY   STATUS        RESTARTS        AGE
+backend-59fd58b5c9-wqvjr    1/1     Running       0               2m1s
+backend-59fd58b5c9-wtz46    1/1     Running       0               2m7s
+backend-5b98fb5bd6-299ns    0/1     Terminating   0               50s
+frontend-6f67bd7b87-4sd5w   1/1     Running       0               2m7s
+frontend-6f67bd7b87-74kfk   1/1     Running       0               2m1s
+postgres-5777d75dcd-qbbxn   1/1     Running       1 (5m12s ago)   60m
+
+$ curl -s http://127.0.0.1/api/info
+{"version":"1.1.0","env":"kubernetes","log_level":"INFO","pod":"backend-59fd58b5c9-wqvjr"}

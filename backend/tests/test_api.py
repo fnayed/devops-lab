@@ -24,6 +24,12 @@ def test_health(client):
     assert r.json() == {"status": "ok"}
 
 
+def test_info(client):
+    r = client.get("/api/info")
+    assert r.status_code == 200
+    assert set(r.json()) == {"version", "env", "log_level", "pod"}
+
+
 def test_create_and_list(client):
     r = client.post("/api/tasks", json={"title": "Write Dockerfile"})
     assert r.status_code == 201

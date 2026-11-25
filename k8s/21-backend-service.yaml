@@ -1,0 +1,16 @@
+# Доступ до бекенду всередині кластера за іменем "backend" (використовує nginx фронтенду)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: devops-lab
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: backend
+  ports:
+    - port: 8000
+      targetPort: 8000

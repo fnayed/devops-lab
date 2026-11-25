@@ -1,9 +1,10 @@
-import { isValidTitle, normalizeTitle, statusText } from "./utils.js";
+import { infoText, isValidTitle, normalizeTitle, statusText } from "./utils.js";
 
 const list = document.getElementById("list");
 const form = document.getElementById("form");
 const titleInput = document.getElementById("title");
 const statusEl = document.getElementById("status");
+const infoEl = document.getElementById("info");
 
 async function api(path, options = {}) {
   const res = await fetch("/api" + path, {
@@ -37,7 +38,8 @@ async function load() {
       li.append(box, text, del);
       list.append(li);
     }
-    statusEl.textContent = statusText(tasks.length);
+    statusEl.textContent = statusText(tasks);
+    infoEl.textContent = infoText(await api("/info"));
   } catch (e) {
     statusEl.textContent = "Бекенд недоступний: " + e.message;
   }

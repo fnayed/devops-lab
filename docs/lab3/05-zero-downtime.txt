@@ -1,0 +1,32 @@
+# Повторне оновлення 1.0.0 -> 1.1.0 після додавання preStop-хука
+$ curl -s http://127.0.0.1/api/info
+{"version":"1.0.0","env":"kubernetes","log_level":"INFO","pod":"backend-687c89f95d-prwvg"}
+
+$ kubectl -n devops-lab set image deploy/backend backend=ghcr.io/fnayed/devops-lab-backend:1.1.0
+deployment.apps/backend image updated
+
+$ kubectl -n devops-lab set image deploy/frontend frontend=ghcr.io/fnayed/devops-lab-frontend:1.1.0
+deployment.apps/frontend image updated
+
+$ kubectl -n devops-lab rollout status deploy/backend
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+deployment "backend" successfully rolled out
+
+$ kubectl -n devops-lab rollout status deploy/frontend
+deployment "frontend" successfully rolled out
+
+$ curl -s http://127.0.0.1/api/info
+{"version":"1.0.0","env":"kubernetes","log_level":"INFO","pod":"backend-687c89f95d-prwvg"}
+
+# Доступність: 160 запитів до /api/health кожні 0.25 с протягом оновлення, коди відповідей:
+    160 200
+
+# Через кілька секунд — відповідають лише поди 1.1.0:
+$ for i in $(seq 6); do curl -s http://127.0.0.1/api/info; done | sort | uniq -c
+      2 {"version":"1.1.0","env":"kubernetes","log_level":"INFO","pod":"backend-59fd58b5c9-wqvjr"}
+      4 {"version":"1.1.0","env":"kubernetes","log_level":"INFO","pod":"backend-59fd58b5c9-wtz46"}

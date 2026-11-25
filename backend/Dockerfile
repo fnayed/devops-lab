@@ -11,6 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копіюємо код застосунку та тести
 COPY . .
 
+# Версія застосунку передається під час збірки (у CI — з git-тегу, напр. 1.0.0)
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 EXPOSE 8000
 
 # Запуск веб-сервера

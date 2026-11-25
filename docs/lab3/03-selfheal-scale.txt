@@ -1,0 +1,39 @@
+# 6a. Самовідновлення: видаляємо под бекенду
+$ kubectl -n devops-lab get pods -l app.kubernetes.io/name=backend
+NAME                       READY   STATUS    RESTARTS   AGE
+backend-58794986b4-5j644   1/1     Running   0          71s
+backend-58794986b4-hz9xh   1/1     Running   0          71s
+
+$ kubectl -n devops-lab delete pod backend-58794986b4-5j644 --wait=false
+pod "backend-58794986b4-5j644" deleted from devops-lab namespace
+
+$ kubectl -n devops-lab get pods -l app.kubernetes.io/name=backend
+NAME                       READY   STATUS              RESTARTS   AGE
+backend-58794986b4-5j644   1/1     Terminating         0          71s
+backend-58794986b4-hz9xh   1/1     Running             0          71s
+backend-58794986b4-qlkmv   0/1     ContainerCreating   0          0s
+
+# через кілька секунд — замість видаленого пода ReplicaSet створив новий:
+$ kubectl -n devops-lab get pods -l app.kubernetes.io/name=backend
+NAME                       READY   STATUS    RESTARTS   AGE
+backend-58794986b4-hz9xh   1/1     Running   0          77s
+backend-58794986b4-qlkmv   1/1     Running   0          6s
+
+# 6b. Масштабування: 2 -> 4 репліки
+$ kubectl -n devops-lab scale deployment backend --replicas=4
+deployment.apps/backend scaled
+
+$ kubectl -n devops-lab get pods -l app.kubernetes.io/name=backend
+NAME                       READY   STATUS    RESTARTS   AGE
+backend-58794986b4-dzh8n   1/1     Running   0          5s
+backend-58794986b4-hz9xh   1/1     Running   0          83s
+backend-58794986b4-jqrrg   1/1     Running   0          5s
+backend-58794986b4-qlkmv   1/1     Running   0          12s
+
+# Розподіл трафіку: 20 запитів через Ingress, рахуємо, який под відповів
+$ for i in $(seq 20); do curl -s http://127.0.0.1/api/info; done | grep -o "backend-[a-z0-9-]*" | sort | uniq -c
+      6 backend-58794986b4-dzh8n
+      6 backend-58794986b4-hz9xh
+      2 backend-58794986b4-jqrrg
+      6 backend-58794986b4-qlkmv
+

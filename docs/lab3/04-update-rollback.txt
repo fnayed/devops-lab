@@ -1,0 +1,83 @@
+# 6c. Rolling update: backend і frontend 1.0.0 -> 1.1.0
+$ kubectl -n devops-lab set image deploy/backend backend=ghcr.io/fnayed/devops-lab-backend:1.1.0
+deployment.apps/backend image updated
+
+$ kubectl -n devops-lab annotate deploy/backend kubernetes.io/change-cause=оновлення до 1.1.0 --overwrite
+deployment.apps/backend annotated
+
+$ kubectl -n devops-lab set image deploy/frontend frontend=ghcr.io/fnayed/devops-lab-frontend:1.1.0
+deployment.apps/frontend image updated
+
+$ kubectl -n devops-lab rollout status deploy/backend
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+deployment "backend" successfully rolled out
+
+$ kubectl -n devops-lab rollout status deploy/frontend
+Waiting for deployment "frontend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "frontend" rollout to finish: 1 old replicas are pending termination...
+deployment "frontend" successfully rolled out
+
+$ kubectl -n devops-lab get rs -l app.kubernetes.io/name=backend
+NAME                 DESIRED   CURRENT   READY   AGE
+backend-58794986b4   0         0         0       56m
+backend-666d6d665f   2         2         2       16s
+
+$ curl -s http://127.0.0.1/api/info
+{"version":"1.1.0","env":"kubernetes","log_level":"INFO","pod":"backend-666d6d665f-k6krj"}
+
+# 6e. Доступність під час оновлення: 120 запитів до /api/health кожні 0.25 с, коди відповідей:
+      3 000
+    116 200
+      1 502
+
+# 6d. Історія та відкат
+$ kubectl -n devops-lab rollout history deploy/backend
+deployment.apps/backend 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         оновлення до 1.1.0
+
+
+$ kubectl -n devops-lab rollout undo deploy/backend
+Warning: resource deployments/backend was previously managed with 'kubectl apply'. Rolling back will not update the kubectl.kubernetes.io/last-applied-configuration annotation, which may cause unexpected behavior on future 'kubectl apply' operations. Consider using 'kubectl apply' with your previous configuration file instead.
+deployment.apps/backend rolled back
+
+$ kubectl -n devops-lab rollout status deploy/backend
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+deployment "backend" successfully rolled out
+
+$ curl -s http://127.0.0.1/api/info
+{"version":"1.0.0","env":"kubernetes","log_level":"INFO","pod":"backend-58794986b4-b27s9"}
+
+$ kubectl -n devops-lab rollout history deploy/backend
+deployment.apps/backend 
+REVISION  CHANGE-CAUSE
+2         оновлення до 1.1.0
+3         <none>
+
+
+# Повертаємо 1.1.0
+$ kubectl -n devops-lab rollout undo deploy/backend
+Warning: resource deployments/backend was previously managed with 'kubectl apply'. Rolling back will not update the kubectl.kubernetes.io/last-applied-configuration annotation, which may cause unexpected behavior on future 'kubectl apply' operations. Consider using 'kubectl apply' with your previous configuration file instead.
+deployment.apps/backend rolled back
+
+$ kubectl -n devops-lab rollout status deploy/backend
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+deployment "backend" successfully rolled out
+

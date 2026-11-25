@@ -1,0 +1,13 @@
+# Нечутливі параметри конфігурації — передаються в контейнери як змінні оточення
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/part-of: devops-lab
+data:
+  APP_ENV: "kubernetes"   # середовище, показується в /api/info
+  LOG_LEVEL: "info"       # рівень логування бекенду
+  POSTGRES_DB: "tasks"    # назва бази даних
+  POSTGRES_USER: "app"    # користувач бази даних

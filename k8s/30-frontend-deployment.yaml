@@ -1,0 +1,46 @@
+# Фронтенд (nginx). Віддає сторінку і проксує /api на сервіс backend.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: devops-lab
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: devops-lab
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: devops-lab
+    spec:
+      containers:
+        - name: frontend
+          image: ghcr.io/fnayed/devops-lab-frontend:1.0.0
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 128Mi }
+          readinessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          lifecycle:
+            preStop: # перед зупинкою даємо час прибрати под із балансування — оновлення без втрати запитів
+              exec:
+                command: ["sleep", "5"]
+          livenessProbe:
+            httpGet: { path: /, port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
