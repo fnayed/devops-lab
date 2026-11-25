@@ -1,0 +1,45 @@
+$ helm version
+version.BuildInfo{Version:"v3.16.4", GitCommit:"7877b45b63f95635153b29a42c0c2f4273ec45ca", GitTreeState:"clean", GoVersion:"go1.22.7"}
+
+$ minikube status
+minikube
+type: Control Plane
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+
+
+$ kubectl -n devops-lab get deploy,svc,pvc,ingress  # лаба 3 працює
+NAME                       READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/backend    2/2     2            2           75m
+deployment.apps/frontend   2/2     2            2           75m
+deployment.apps/postgres   1/1     1            1           75m
+
+NAME               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/backend    ClusterIP   10.105.173.99    <none>        8000/TCP   75m
+service/frontend   ClusterIP   10.97.43.73      <none>        80/TCP     75m
+service/postgres   ClusterIP   10.107.111.246   <none>        5432/TCP   75m
+
+NAME                                  STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+persistentvolumeclaim/postgres-data   Bound    pvc-3f5ad577-52a1-46d4-8718-0da18c820274   1Gi        RWO            standard       <unset>                 75m
+
+NAME                                   CLASS   HOSTS   ADDRESS        PORTS   AGE
+ingress.networking.k8s.io/devops-lab   nginx   *       192.168.49.2   80      75m
+$ curl http://localhost:18080/api/info  # через port-forward
+{"version":"1.1.0","env":"kubernetes","log_level":"INFO","pod":"backend-59fd58b5c9-wqvjr"}
+$ kubectl delete -f k8s/  # видаляємо розгортання лаби 3, щоб уникнути конфлікту імен
+namespace "devops-lab" deleted
+configmap "app-config" deleted from devops-lab namespace
+secret "app-secret" deleted from devops-lab namespace
+persistentvolumeclaim "postgres-data" deleted from devops-lab namespace
+deployment.apps "postgres" deleted from devops-lab namespace
+service "postgres" deleted from devops-lab namespace
+deployment.apps "backend" deleted from devops-lab namespace
+service "backend" deleted from devops-lab namespace
+deployment.apps "frontend" deleted from devops-lab namespace
+service "frontend" deleted from devops-lab namespace
+ingress.networking.k8s.io "devops-lab" deleted from devops-lab namespace
+
+$ kubectl get ns devops-lab
+Error from server (NotFound): namespaces "devops-lab" not found

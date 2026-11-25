@@ -1,0 +1,9 @@
+# Пріоритет значень: values.yaml < -f файл < --set (кількість реплік бекенду)
+$ helm template app chart/devops-lab --show-only templates/backend-deployment.yaml | grep replicas        # лише values.yaml
+  replicas: 1
+$ helm template app chart/devops-lab -f values-prod.yaml ... | grep replicas                             # -f перекриває values.yaml
+  replicas: 3
+$ helm template app chart/devops-lab -f values-prod.yaml --set backend.replicaCount=5 ... | grep replicas # --set перекриває -f
+  replicas: 5
+$ helm template app chart/devops-lab -f values-prod.yaml -f values-dev.yaml ... | grep replicas           # з кількох -f перемагає останній
+  replicas: 1

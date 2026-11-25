@@ -1,0 +1,218 @@
+### Ревізія 1 — встановлення (dev): helm install app chart/devops-lab -n lab4 -f values-dev.yaml --set database.password=***
+$ kubectl -n lab4 get deploy -o custom-columns=NAME:.metadata.name,REPLICAS:.spec.replicas,IMAGE:.spec.template.spec.containers[0].image
+NAME                      REPLICAS   IMAGE
+app-devops-lab-backend    1          ghcr.io/fnayed/devops-lab-backend:1.1.0
+app-devops-lab-frontend   1          ghcr.io/fnayed/devops-lab-frontend:1.1.0
+app-devops-lab-postgres   1          postgres:16-alpine
+
+### 8a. Оновлення тега образу через --set (бекенд 1.1.0 -> 1.0.0)
+$ helm upgrade app chart/devops-lab -n lab4 --reuse-values --set backend.image.tag=1.0.0 --wait
+Release "app" has been upgraded. Happy Helming!
+NAME: app
+LAST DEPLOYED: Wed Nov 25 16:20:13 2026
+NAMESPACE: lab4
+STATUS: deployed
+REVISION: 2
+$ kubectl -n lab4 get events --field-selector involvedObject.kind=Job   # спрацював pre-upgrade хук
+OBJECT                    REASON             MESSAGE
+app-devops-lab-db-check   SuccessfulCreate   Created pod: app-devops-lab-db-check-hzcnh
+app-devops-lab-db-check   Completed          Job completed
+app-devops-lab-db-check   SuccessfulCreate   Created pod: app-devops-lab-db-check-dcszn
+app-devops-lab-db-check   Completed          Job completed
+app-devops-lab-db-check   SuccessfulCreate   Created pod: app-devops-lab-db-check-qj7b5
+app-devops-lab-db-check   Completed          Job completed
+$ kubectl -n lab4 get deploy -o custom-columns=NAME:.metadata.name,REPLICAS:.spec.replicas,IMAGE:.spec.template.spec.containers[0].image
+NAME                      REPLICAS   IMAGE
+app-devops-lab-backend    1          ghcr.io/fnayed/devops-lab-backend:1.0.0
+app-devops-lab-frontend   1          ghcr.io/fnayed/devops-lab-frontend:1.1.0
+app-devops-lab-postgres   1          postgres:16-alpine
+
+$ helm history app -n lab4
+REVISION	UPDATED                 	STATUS    	CHART           	APP VERSION	DESCRIPTION     
+1       	Wed Nov 25 16:20:01 2026	superseded	devops-lab-0.1.0	1.1.0      	Install complete
+2       	Wed Nov 25 16:20:13 2026	deployed  	devops-lab-0.1.0	1.1.0      	Upgrade complete
+
+### 8b. Оновлення з файлом значень іншого середовища (prod)
+$ helm upgrade app chart/devops-lab -n lab4 -f chart/devops-lab/values-prod.yaml --set database.password=*** --wait
+Release "app" has been upgraded. Happy Helming!
+NAME: app
+LAST DEPLOYED: Wed Nov 25 16:20:23 2026
+NAMESPACE: lab4
+STATUS: deployed
+REVISION: 3
+$ kubectl -n lab4 get deploy -o custom-columns=NAME:.metadata.name,REPLICAS:.spec.replicas,IMAGE:.spec.template.spec.containers[0].image
+NAME                      REPLICAS   IMAGE
+app-devops-lab-backend    3          ghcr.io/fnayed/devops-lab-backend:1.0.0
+app-devops-lab-frontend   2          ghcr.io/fnayed/devops-lab-frontend:1.0.0
+app-devops-lab-postgres   1          postgres:16-alpine
+$ kubectl -n lab4 get ingress
+NAME             CLASS   HOSTS   ADDRESS   PORTS   AGE
+app-devops-lab   nginx   *                 80      21s
+$ kubectl -n lab4 get configmap app-devops-lab-config -o jsonpath={.data}
+{"APP_ENV":"production","LOG_LEVEL":"warning","POSTGRES_DB":"tasks","POSTGRES_USER":"app"}
+
+$ helm history app -n lab4
+REVISION	UPDATED                 	STATUS    	CHART           	APP VERSION	DESCRIPTION     
+1       	Wed Nov 25 16:20:01 2026	superseded	devops-lab-0.1.0	1.1.0      	Install complete
+2       	Wed Nov 25 16:20:13 2026	superseded	devops-lab-0.1.0	1.1.0      	Upgrade complete
+3       	Wed Nov 25 16:20:23 2026	deployed  	devops-lab-0.1.0	1.1.0      	Upgrade complete
+
+### 8c. Що змінювалось: значення та маніфести ревізій
+$ helm get values app -n lab4 --revision 1
+USER-SUPPLIED VALUES:
+backend:
+  image:
+    tag: 1.1.0
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 300m
+      memory: 192Mi
+    requests:
+      cpu: 50m
+      memory: 96Mi
+config:
+  appEnv: development
+  logLevel: debug
+database:
+  password: "***"
+frontend:
+  image:
+    tag: 1.1.0
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 25m
+      memory: 32Mi
+ingress:
+  enabled: false
+
+$ helm get values app -n lab4 --revision 2
+USER-SUPPLIED VALUES:
+backend:
+  image:
+    tag: 1.0.0
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 300m
+      memory: 192Mi
+    requests:
+      cpu: 50m
+      memory: 96Mi
+config:
+  appEnv: development
+  logLevel: debug
+database:
+  password: "***"
+frontend:
+  image:
+    tag: 1.1.0
+  replicaCount: 1
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 25m
+      memory: 32Mi
+ingress:
+  enabled: false
+
+$ helm get values app -n lab4 --revision 3
+USER-SUPPLIED VALUES:
+backend:
+  image:
+    tag: 1.0.0
+  replicaCount: 3
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+config:
+  appEnv: production
+  logLevel: warning
+database:
+  password: "***"
+frontend:
+  image:
+    tag: 1.0.0
+  replicaCount: 2
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 32Mi
+ingress:
+  enabled: true
+
+$ diff <(helm get manifest app -n lab4 --revision 1) <(helm get manifest app -n lab4 --revision 2)
+211c211
+<           image: ghcr.io/fnayed/devops-lab-backend:1.1.0
+---
+>           image: ghcr.io/fnayed/devops-lab-backend:1.0.0
+
+$ diff <(helm get manifest app -n lab4 --revision 2) <(helm get manifest app -n lab4 --revision 3) | grep ключові поля
+<   APP_ENV: "development"
+<   LOG_LEVEL: "debug"
+>   APP_ENV: "production"
+>   LOG_LEVEL: "warning"
+<   replicas: 1
+>   replicas: 3
+<               cpu: 300m
+<               memory: 192Mi
+>               cpu: 500m
+>               memory: 256Mi
+<               cpu: 50m
+<               memory: 96Mi
+>               cpu: 100m
+>               memory: 128Mi
+<   replicas: 1
+>   replicas: 2
+<           image: ghcr.io/fnayed/devops-lab-frontend:1.1.0
+>           image: ghcr.io/fnayed/devops-lab-frontend:1.0.0
+<               cpu: 100m
+<               memory: 64Mi
+>               cpu: 200m
+>               memory: 128Mi
+<               cpu: 25m
+>               cpu: 50m
+> kind: Ingress
+
+### 8d. Відкат до ревізії 2
+$ helm rollback app 2 -n lab4 --wait
+Rollback was a success! Happy Helming!
+$ kubectl -n lab4 get deploy -o custom-columns=NAME:.metadata.name,REPLICAS:.spec.replicas,IMAGE:.spec.template.spec.containers[0].image
+NAME                      REPLICAS   IMAGE
+app-devops-lab-backend    1          ghcr.io/fnayed/devops-lab-backend:1.0.0
+app-devops-lab-frontend   1          ghcr.io/fnayed/devops-lab-frontend:1.1.0
+app-devops-lab-postgres   1          postgres:16-alpine
+$ kubectl -n lab4 get ingress
+No resources found in lab4 namespace.
+
+$ helm history app -n lab4
+REVISION	UPDATED                 	STATUS    	CHART           	APP VERSION	DESCRIPTION     
+1       	Wed Nov 25 16:20:01 2026	superseded	devops-lab-0.1.0	1.1.0      	Install complete
+2       	Wed Nov 25 16:20:13 2026	superseded	devops-lab-0.1.0	1.1.0      	Upgrade complete
+3       	Wed Nov 25 16:20:23 2026	superseded	devops-lab-0.1.0	1.1.0      	Upgrade complete
+4       	Wed Nov 25 16:20:47 2026	deployed  	devops-lab-0.1.0	1.1.0      	Rollback to 2   
+
+$ helm test app -n lab4 --logs   # після відкату застосунок працює
+TEST SUITE:     app-devops-lab-test-health
+Last Started:   Wed Nov 25 16:20:56 2026
+Last Completed: Wed Nov 25 16:20:58 2026
+Phase:          Succeeded
+POD LOGS: app-devops-lab-test-health
+GET http://app-devops-lab-frontend:80/api/health
+{"status":"ok"}
+GET http://app-devops-lab-frontend:80/api/info
+{"version":"1.0.0","env":"development","log_level":"DEBUG","pod":"app-devops-lab-backend-76cf5f4d75-jl9nk"}
+

@@ -1,0 +1,32 @@
+# Той самий чарт удруге в той самий кластер під іншим іменем релізу — конфліктів імен немає
+$ helm install second chart/devops-lab -n lab4 --set database.password=*** --set postgres.persistence.enabled=false --wait
+NAME: second
+LAST DEPLOYED: Wed Nov 25 16:18:36 2026
+NAMESPACE: lab4
+STATUS: deployed
+REVISION: 1
+
+$ helm list -n lab4
+NAME  	NAMESPACE	REVISION	UPDATED                              	STATUS  	CHART           	APP VERSION
+app   	lab4     	1       	2026-11-25 16:18:00.9381411 +0200 EET	deployed	devops-lab-0.1.0	1.1.0      
+second	lab4     	1       	2026-11-25 16:18:36.8258128 +0200 EET	deployed	devops-lab-0.1.0	1.1.0      
+
+$ kubectl -n lab4 get deploy,svc
+NAME                                         READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/app-devops-lab-backend       1/1     1            1           48s
+deployment.apps/app-devops-lab-frontend      1/1     1            1           48s
+deployment.apps/app-devops-lab-postgres      1/1     1            1           48s
+deployment.apps/second-devops-lab-backend    1/1     1            1           12s
+deployment.apps/second-devops-lab-frontend   1/1     1            1           12s
+deployment.apps/second-devops-lab-postgres   1/1     1            1           12s
+
+NAME                                 TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+service/app-devops-lab-backend       ClusterIP   10.108.147.140   <none>        8000/TCP   48s
+service/app-devops-lab-frontend      ClusterIP   10.102.29.248    <none>        80/TCP     48s
+service/app-devops-lab-postgres      ClusterIP   10.106.173.214   <none>        5432/TCP   48s
+service/second-devops-lab-backend    ClusterIP   10.109.213.29    <none>        8000/TCP   12s
+service/second-devops-lab-frontend   ClusterIP   10.104.8.138     <none>        80/TCP     12s
+service/second-devops-lab-postgres   ClusterIP   10.100.126.5     <none>        5432/TCP   12s
+
+$ helm uninstall second -n lab4
+release "second" uninstalled

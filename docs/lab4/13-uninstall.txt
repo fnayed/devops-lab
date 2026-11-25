@@ -1,0 +1,27 @@
+### 8e. Видалення релізу однією командою
+$ helm test app -n lab4   # тестовий под видаляється після успіху (hook-delete-policy: hook-succeeded)
+TEST SUITE:     app-devops-lab-test-health
+Last Started:   Wed Nov 25 16:21:25 2026
+Last Completed: Wed Nov 25 16:21:27 2026
+Phase:          Succeeded
+
+$ helm uninstall app -n lab4 --wait
+release "app" uninstalled
+
+$ kubectl -n lab4 get all,cm,secret,pvc,ingress,jobs
+NAME                                           READY   STATUS        RESTARTS   AGE
+pod/app-devops-lab-backend-75d48d8444-gblbj    1/1     Terminating   0          17s
+pod/app-devops-lab-frontend-6b4855d4b7-tb2hc   1/1     Terminating   0          17s
+
+NAME                         DATA   AGE
+configmap/kube-root-ca.crt   1      3m28s
+
+$ helm list -n lab4 --all
+NAME	NAMESPACE	REVISION	UPDATED	STATUS	CHART	APP VERSION
+
+$ kubectl -n lab4 wait --for=delete pod --all   # поди завершуються з урахуванням preStop sleep 5
+$ kubectl -n lab4 get all,cm,secret,pvc,ingress,jobs
+NAME                         DATA   AGE
+configmap/kube-root-ca.crt   1      3m34s
+
+# Залишився лише configmap/kube-root-ca.crt — його Kubernetes автоматично створює в кожному namespace

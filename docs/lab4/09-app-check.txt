@@ -1,0 +1,7 @@
+$ kubectl -n lab4 port-forward svc/app-devops-lab-frontend 8080:80
+$ curl http://localhost:8080/api/info
+{"version":"1.1.0","env":"development","log_level":"DEBUG","pod":"app-devops-lab-backend-75d48d8444-8vsnn"}
+$ curl -X POST http://localhost:8080/api/tasks -H "Content-Type: application/json" -d '{"title":"Перевірити Helm-чарт"}'
+{"id":1,"title":"Перевірити Helm-чарт","done":false}
+$ curl http://localhost:8080/api/tasks
+[{"id":1,"title":"Перевірити Helm-чарт","done":false}]

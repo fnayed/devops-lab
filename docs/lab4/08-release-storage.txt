@@ -1,0 +1,18 @@
+$ kubectl -n lab4 get secret -l owner=helm --show-labels
+NAME                        TYPE                 DATA   AGE   LABELS
+sh.helm.release.v1.app.v1   helm.sh/release.v1   1      25s   modifiedAt=1795616293,name=app,owner=helm,status=deployed,version=1
+
+# Вміст: base64 -> gzip -> JSON з іменем, версією чарта, values, маніфестами
+$ kubectl -n lab4 get secret sh.helm.release.v1.app.v1 -o jsonpath="{.data.release}" | base64 -d | base64 -d | gunzip | jq "{name,version,namespace,info:{status:.info.status},chart:.chart.metadata|{name,version,appVersion}}"
+{
+  "name": "app",
+  "version": 1,
+  "namespace": "lab4",
+  "status": "deployed",
+  "chart": {
+    "name": "devops-lab",
+    "version": "0.1.0",
+    "appVersion": "1.1.0"
+  },
+  "manifest_lines": 397
+}
