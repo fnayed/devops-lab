@@ -1,0 +1,14 @@
+# Доступ до бекенду всередині кластера (використовує nginx фронтенду)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "devops-lab.componentName" (list . "backend") }}
+  labels:
+    {{- include "devops-lab.componentLabels" (list . "backend") | nindent 4 }}
+spec:
+  type: {{ .Values.backend.service.type }}
+  selector:
+    {{- include "devops-lab.selectorLabels" (list . "backend") | nindent 4 }}
+  ports:
+    - port: {{ .Values.backend.service.port }}
+      targetPort: 8000

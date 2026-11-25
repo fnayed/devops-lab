@@ -1,0 +1,14 @@
+# Сервіс фронтенду; ззовні до нього веде Ingress (або kubectl port-forward у dev)
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "devops-lab.componentName" (list . "frontend") }}
+  labels:
+    {{- include "devops-lab.componentLabels" (list . "frontend") | nindent 4 }}
+spec:
+  type: {{ .Values.frontend.service.type }}
+  selector:
+    {{- include "devops-lab.selectorLabels" (list . "frontend") | nindent 4 }}
+  ports:
+    - port: {{ .Values.frontend.service.port }}
+      targetPort: 80

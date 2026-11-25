@@ -1,0 +1,18 @@
+{{- if .Values.postgres.persistence.enabled }}
+# Постійне сховище для бази даних (вимикається postgres.persistence.enabled=false)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "devops-lab.componentName" (list . "postgres") }}-data
+  labels:
+    {{- include "devops-lab.componentLabels" (list . "postgres") | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.postgres.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.postgres.persistence.size }}
+{{- end }}

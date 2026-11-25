@@ -1,0 +1,75 @@
+# Значення за замовчуванням — середовище розробки (dev).
+# Для інших середовищ перевизначаються файлами values-<env>.yaml або прапорцем --set.
+
+# Перевизначення імен об'єктів (за замовчуванням імена будуються з імені релізу)
+nameOverride: ""
+fullnameOverride: ""
+
+# Параметри застосунку -> ConfigMap (змінні оточення бекенду)
+config:
+  appEnv: development   # показується в /api/info
+  logLevel: debug       # рівень логування бекенду
+
+# Параметри бази даних
+database:
+  name: tasks
+  user: app
+  # Навчальний пароль лише для локального dev-кластера.
+  # Для prod пароль передається під час встановлення: --set database.password=...
+  password: dev-only-password
+
+backend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/fnayed/devops-lab-backend
+    tag: ""             # порожньо -> використовується appVersion з Chart.yaml
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { cpu: 300m, memory: 192Mi }
+
+frontend:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/fnayed/devops-lab-frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 64Mi }
+
+postgres:
+  image:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+  service:
+    port: 5432
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 300m, memory: 256Mi }
+  persistence:
+    enabled: true       # false -> emptyDir (дані зникають разом із подом)
+    size: 1Gi         # у minikube (storageclass standard) розмір існуючого тому змінити не можна
+    storageClass: ""    # порожньо -> клас сховища кластера за замовчуванням
+
+ingress:
+  enabled: false        # у dev застосунок відкривається через kubectl port-forward
+  className: nginx
+  host: ""              # порожньо -> будь-який хост
+
+# Pre-upgrade хук: перед оновленням перевіряє, що база даних доступна
+hooks:
+  dbCheck:
+    enabled: true
+    image: postgres:16-alpine
+
+# Тест релізу (helm test): запит до /api/health через фронтенд
+tests:
+  image: busybox:1.36

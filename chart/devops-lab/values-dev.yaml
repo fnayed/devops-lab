@@ -1,0 +1,23 @@
+# Середовище розробки: мінімум ресурсів, по одній репліці, без Ingress
+config:
+  appEnv: development
+  logLevel: debug
+
+backend:
+  replicaCount: 1
+  image:
+    tag: "1.1.0"
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { cpu: 300m, memory: 192Mi }
+
+frontend:
+  replicaCount: 1
+  image:
+    tag: "1.1.0"
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 100m, memory: 64Mi }
+
+ingress:
+  enabled: false

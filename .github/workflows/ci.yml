@@ -71,6 +71,34 @@ jobs:
       - name: Test (node:test)
         run: npm test
 
+  # ---------- Helm-чарт: перевірка та рендеринг для обох середовищ ----------
+  helm:
+    name: helm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: Lint
+        run: |
+          helm lint --strict chart/devops-lab
+          helm lint --strict chart/devops-lab -f chart/devops-lab/values-dev.yaml
+          helm lint --strict chart/devops-lab -f chart/devops-lab/values-prod.yaml --set database.password=ci-check
+
+      - name: Template
+        run: |
+          helm template app chart/devops-lab -f chart/devops-lab/values-dev.yaml > /dev/null
+          helm template app chart/devops-lab -f chart/devops-lab/values-prod.yaml --set database.password=ci-check > /dev/null
+
+      - name: Prod без пароля має завершуватись помилкою
+        run: |
+          if helm template app chart/devops-lab -f chart/devops-lab/values-prod.yaml > /dev/null 2>&1; then
+            echo "Очікувалась помилка: пароль бази не задано"; exit 1
+          fi
+
   # ---------- Docker-образи: збірка, сканування, публікація ----------
   images:
     name: images (${{ matrix.service }})
